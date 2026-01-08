@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Todo List</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            /* Light theme variables */
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: white;
+            --card-header-bg: #e9ecef;
+            --border-color: #dee2e6;
+            --highlight-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --disabled-color: #6c757d;
+            --completed-opacity: 0.7;
+        }
+
+        .dark-theme {
+            /* Dark theme variables */
+            --bg-color: #121212;
+            --text-color: #e9ecef;
+            --card-bg: #1e1e1e;
+            --card-header-bg: #2d2d2d;
+            --border-color: #444;
+            --highlight-color: #4da6ff;
+            --success-color: #4caf50;
+            --warning-color: #ffca28;
+            --danger-color: #f44336;
+            --disabled-color: #adb5bd;
+            --completed-opacity: 0.6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .card-header {
+            background-color: var(--card-header-bg);
+            border-bottom-color: var(--border-color);
+        }
+
+        .todo-item {
+            border-left: 4px solid var(--highlight-color);
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .todo-item.completed {
+            opacity: var(--completed-opacity);
+            border-left-color: var(--success-color);
+        }
+        .todo-item.completed .todo-title {
+            text-decoration: line-through;
+        }
+        .subtask-item {
+            padding-left: 20px;
+            margin-top: 5px;
+            border-left: 2px solid var(--disabled-color);
+            color: var(--text-color);
+        }
+        .subtask-item.completed .subtask-title {
+            text-decoration: line-through;
+        }
+        .due-date {
+            font-size: 0.8em;
+            color: var(--disabled-color);
+        }
+        .carry-over-panel {
+            border: 2px dashed var(--warning-color);
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+        .form-control, .form-check-input {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        /* Placeholder text for inputs */
+        .form-control::placeholder {
+            color: var(--disabled-color);
+            opacity: 0.6;
+        }
+
+        /* Input text color to ensure readability */
+        input.form-control, textarea.form-control {
+            caret-color: var(--text-color);
+        }
+
+        /* Specific input and textarea styling for dark theme */
+        .dark-theme input, .dark-theme textarea {
+            background-color: var(--card-bg) !important;
+            color: var(--text-color) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        /* Checkbox styling for dark theme */
+        .dark-theme .form-check-input {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+        }
+
+        .dark-theme .form-check-input:checked {
+            background-color: var(--highlight-color);
+            border-color: var(--highlight-color);
+        }
+
+        .btn {
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .btn-outline-secondary {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+        .btn-outline-secondary:hover {
+            background-color: var(--border-color);
+        }
+        .text-muted {
+            color: var(--disabled-color) !important;
+        }
+        .fade-enter {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        .fade-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 300ms, transform 300ms;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-10 mx-auto">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="fas fa-tasks text-primary"></i> Daily Todo List</h1>
+                    <div class="d-flex align-items-center">
+                        <span class="me-3">Welcome, {{ current_user.username }}!</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger me-2">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                        <button id="theme-toggle" class="btn btn-outline-secondary">
+                            <i class="fas fa-moon"></i> Dark Mode
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Add New Todo Form -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-plus-circle text-success"></i> Add New Task</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="add-todo-form">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="todo-title" class="form-label">Title *</label>
+                                    <input type="text" class="form-control" id="todo-title" placeholder="Enter task title" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="todo-deadline" class="form-label">Deadline (Optional)</label>
+                                    <input type="date" class="form-control" id="todo-deadline">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="todo-description" class="form-label">Description (Optional)</label>
+                                <textarea class="form-control" id="todo-description" rows="2" placeholder="Enter task description"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Task</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Carry Over Section -->
+                {% if carry_over_todos %}
+                <div class="card carry-over-panel mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> Unfinished Tasks from Previous Days</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>These tasks were not completed yesterday. Do you want to carry them over to today?</p>
+                        <div id="carry-over-todos">
+                            {% for todo in carry_over_todos %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input carry-over-checkbox" type="checkbox" value="{{ todo.id }}" id="carryOver{{ todo.id }}">
+                                <label class="form-check-label" for="carryOver{{ todo.id }}">
+                                    <strong>{{ todo.title }}</strong> 
+                                    {% if todo.description %}<small class="text-muted">- {{ todo.description }}</small>{% endif %}
+                                    {% if todo.deadline %}<span class="badge bg-secondary ms-2">Due: {{ todo.deadline }}</span>{% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button id="carry-over-btn" class="btn btn-warning mt-3"><i class="fas fa-share"></i> Carry Over Selected</button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Incomplete Todo List -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-list-check text-warning"></i> Today's Incomplete Tasks</h5>
+                        <span class="badge bg-warning">{{ incomplete_todos|length }} tasks</span>
+                    </div>
+                    <div class="card-body">
+                        {% if incomplete_todos %}
+                            {% for todo in incomplete_todos %}
+                            <div class="todo-item card mb-3" data-id="{{ todo.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input todo-checkbox" type="checkbox" id="todoCheck{{ todo.id }}" {% if todo.completed %}checked{% endif %}>
+                                                <label class="form-check-label todo-title" for="todoCheck{{ todo.id }}">
+                                                    <strong>{{ todo.title }}</strong>
+                                                    {% if todo.deadline %}<span class="due-date ms-2">(Due: {{ todo.deadline }})</span>{% endif %}
+                                                </label>
+                                            </div>
+                                            {% if todo.description %}
+                                            <p class="mt-2 mb-2 text-muted">{{ todo.description }}</p>
+                                            {% endif %}
+
+                                            <!-- Subtasks Collapsible Section -->
+                                            {% if todo.subtasks %}
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#subtasks{{ todo.id }}" aria-expanded="false">
+                                                    <i class="fas fa-chevron-down"></i> Subtasks ({{ todo.subtasks|length }})
+                                                </button>
+                                                <div class="collapse" id="subtasks{{ todo.id }}">
+                                                    {% for subtask in todo.subtasks %}
+                                                    <div class="subtask-item d-flex align-items-center {% if subtask.completed %}completed{% endif %}">
+                                                        <div class="form-check flex-grow-1">
+                                                            <input class="form-check-input subtask-checkbox" type="checkbox" id="subtaskCheck{{ subtask.id }}" {% if subtask.completed %}checked{% endif %}>
+                                                            <label class="form-check-label subtask-title" for="subtaskCheck{{ subtask.id }}">{{ subtask.title }}</label>
+                                                        </div>
+                                                        <button class="btn btn-outline-danger btn-sm delete-subtask-btn" data-id="{{ subtask.id }}">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+
+                                            <!-- Add Subtask Form - Collapsible -->
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addSubtask{{ todo.id }}">
+                                                    <i class="fas fa-plus"></i> Add Subtask
+                                                </button>
+                                                <div class="collapse" id="addSubtask{{ todo.id }}">
+                                                    <div class="input-group mt-2">
+                                                        <input type="text" class="form-control subtask-input" placeholder="Add a subtask..." data-parent-id="{{ todo.id }}" id="subtaskInput{{ todo.id }}">
+                                                        <button class="btn btn-outline-success add-subtask-btn" type="button" data-parent-id="{{ todo.id }}">Add</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-outline-danger delete-todo-btn" data-id="{{ todo.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-2">
+                                <p class="text-muted mb-0">No incomplete tasks for today!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Completed Todo List -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-check-circle text-success"></i> Today's Completed Tasks</h5>
+                        <span class="badge bg-success">{{ completed_todos|length }} tasks</span>
+                    </div>
+                    <div class="card-body">
+                        {% if completed_todos %}
+                            {% for todo in completed_todos %}
+                            <div class="todo-item card mb-3 completed" data-id="{{ todo.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input todo-checkbox" type="checkbox" id="todoCheck{{ todo.id }}" {% if todo.completed %}checked{% endif %}>
+                                                <label class="form-check-label todo-title" for="todoCheck{{ todo.id }}">
+                                                    <strong>{{ todo.title }}</strong>
+                                                    {% if todo.deadline %}<span class="due-date ms-2">(Due: {{ todo.deadline }})</span>{% endif %}
+                                                </label>
+                                            </div>
+                                            {% if todo.description %}
+                                            <p class="mt-2 mb-2 text-muted">{{ todo.description }}</p>
+                                            {% endif %}
+
+                                            <!-- Subtasks Collapsible Section -->
+                                            {% if todo.subtasks %}
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#subtasksCompleted{{ todo.id }}" aria-expanded="false">
+                                                    <i class="fas fa-chevron-down"></i> Subtasks ({{ todo.subtasks|length }})
+                                                </button>
+                                                <div class="collapse" id="subtasksCompleted{{ todo.id }}">
+                                                    {% for subtask in todo.subtasks %}
+                                                    <div class="subtask-item d-flex align-items-center {% if subtask.completed %}completed{% endif %}">
+                                                        <div class="form-check flex-grow-1">
+                                                            <input class="form-check-input subtask-checkbox" type="checkbox" id="subtaskCheck{{ subtask.id }}" {% if subtask.completed %}checked{% endif %}>
+                                                            <label class="form-check-label subtask-title" for="subtaskCheck{{ subtask.id }}">{{ subtask.title }}</label>
+                                                        </div>
+                                                        <button class="btn btn-outline-danger btn-sm delete-subtask-btn" data-id="{{ subtask.id }}">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-outline-danger delete-todo-btn" data-id="{{ todo.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-2">
+                                <p class="text-muted mb-0">No completed tasks for today yet!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Theme toggle functionality
+            function setupThemeToggle() {
+                const themeToggle = document.getElementById('theme-toggle');
+                const icon = themeToggle.querySelector('i');
+
+                // Check for saved theme preference or respect OS preference
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+                // Apply the theme
+                if (savedTheme === 'dark' || (!savedTheme && prefersDarkScheme.matches)) {
+                    document.body.classList.add('dark-theme');
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                    themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                    themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+                }
+
+                // Theme toggle event listener
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', function() {
+                        if (document.body.classList.contains('dark-theme')) {
+                            // Switch to light theme
+                            document.body.classList.remove('dark-theme');
+                            icon.classList.remove('fa-sun');
+                            icon.classList.add('fa-moon');
+                            themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+                            localStorage.setItem('theme', 'light');
+                        } else {
+                            // Switch to dark theme
+                            document.body.classList.add('dark-theme');
+                            icon.classList.remove('fa-moon');
+                            icon.classList.add('fa-sun');
+                            themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+                            localStorage.setItem('theme', 'dark');
+                        }
+                    });
+                }
+            }
+
+            // Initialize theme toggle
+            setupThemeToggle();
+
+            // Add new todo
+            $('#add-todo-form').on('submit', function(e) {
+                e.preventDefault();
+
+                const title = $('#todo-title').val().trim();
+                const description = $('#todo-description').val().trim();
+                const deadline = $('#todo-deadline').val();
+
+                if (!title) {
+                    alert('Title is required!');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/add_todo',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        title: title,
+                        description: description,
+                        deadline: deadline
+                    }),
+                    success: function(response) {
+                        // Clear form
+                        $('#todo-title').val('');
+                        $('#todo-description').val('');
+                        $('#todo-deadline').val('');
+
+                        // Reload the page to update the list
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + xhr.responseJSON.error);
+                    }
+                });
+            });
+            
+            // Toggle todo completion
+            $(document).on('change', '.todo-checkbox', function() {
+                const todoId = $(this).closest('.todo-item').data('id');
+                const isChecked = $(this).is(':checked');
+                
+                $.ajax({
+                    url: `/toggle_complete/${todoId}`,
+                    method: 'POST',
+                    success: function(response) {
+                        const todoItem = $(`.todo-item[data-id="${todoId}"]`);
+                        if (isChecked) {
+                            todoItem.addClass('completed');
+                        } else {
+                            todoItem.removeClass('completed');
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error updating task: ' + xhr.responseText);
+                        // Revert checkbox state
+                        $(this).prop('checked', !isChecked);
+                    }
+                });
+            });
+            
+            // Toggle subtask completion
+            $(document).on('change', '.subtask-checkbox', function() {
+                const subtaskId = $(this).closest('.subtask-item').find('.delete-subtask-btn').data('id');
+                const isChecked = $(this).is(':checked');
+                
+                $.ajax({
+                    url: `/toggle_complete/${subtaskId}`,
+                    method: 'POST',
+                    success: function(response) {
+                        const subtaskItem = $(`.subtask-item:has(.delete-subtask-btn[data-id="${subtaskId}"])`);
+                        if (isChecked) {
+                            subtaskItem.addClass('completed');
+                        } else {
+                            subtaskItem.removeClass('completed');
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error updating subtask: ' + xhr.responseText);
+                        // Revert checkbox state
+                        $(this).prop('checked', !isChecked);
+                    }
+                });
+            });
+            
+            // Add subtask
+            $(document).on('click', '.add-subtask-btn', function() {
+                const parentId = $(this).data('parent-id');
+                const title = $(this).siblings('.subtask-input').val().trim();
+                
+                if (!title) {
+                    alert('Subtask title is required!');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/add_todo',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        title: title,
+                        parent_id: parentId
+                    }),
+                    success: function(response) {
+                        // Clear input
+                        $(`.add-subtask-btn[data-parent-id="${parentId}"]`).siblings('.subtask-input').val('');
+                        
+                        // Reload the page to update the list
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + xhr.responseJSON.error);
+                    }
+                });
+            });
+            
+            // Delete todo
+            $(document).on('click', '.delete-todo-btn', function() {
+                const todoId = $(this).data('id');
+                
+                if (confirm('Are you sure you want to delete this task and all its subtasks?')) {
+                    $.ajax({
+                        url: `/delete_todo/${todoId}`,
+                        method: 'DELETE',
+                        success: function(response) {
+                            $(`.todo-item[data-id="${todoId}"]`).remove();
+                        },
+                        error: function(xhr) {
+                            alert('Error deleting task: ' + xhr.responseText);
+                        }
+                    });
+                }
+            });
+            
+            // Delete subtask
+            $(document).on('click', '.delete-subtask-btn', function() {
+                const subtaskId = $(this).data('id');
+                
+                if (confirm('Are you sure you want to delete this subtask?')) {
+                    $.ajax({
+                        url: `/delete_todo/${subtaskId}`,
+                        method: 'DELETE',
+                        success: function(response) {
+                            $(`.subtask-item:has(.delete-subtask-btn[data-id="${subtaskId}"])`).remove();
+                        },
+                        error: function(xhr) {
+                            alert('Error deleting subtask: ' + xhr.responseText);
+                        }
+                    });
+                }
+            });
+            
+            // Carry over tasks
+            $('#carry-over-btn').on('click', function() {
+                const selectedIds = [];
+                $('.carry-over-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+                
+                if (selectedIds.length === 0) {
+                    alert('Please select at least one task to carry over.');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/carry_over',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({todo_ids: selectedIds}),
+                    success: function(response) {
+                        alert('Selected tasks have been carried over successfully!');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Error carrying over tasks: ' + xhr.responseText);
+                    }
+                });
+            });
+            
+            // Auto-set today's date as minimum for deadline input
+            const today = new Date().toISOString().split('T')[0];
+            $('#todo-deadline').attr('min', today);
+        });
+    </script>
+</body>
+</html>

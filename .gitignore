@@ -1,0 +1,21 @@
+
+# Applications
+*.app
+*.exe
+*.war
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+/.venv/
+**/__pycache__/
+.env
+.vscode/
+/models/cache/
+/logs/
+todos.db
